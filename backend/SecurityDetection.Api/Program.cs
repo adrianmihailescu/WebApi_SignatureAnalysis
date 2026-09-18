@@ -165,8 +165,10 @@ public class SignatureMatcher(AppDbContext db)
     {
         Dictionary<string, string>? conditions;
         try { conditions = JsonSerializer.Deserialize<Dictionary<string, string>>(signature.ConditionsJson); }
-        catch (JsonException) { return false; }
-        if (conditions is null || conditions.Count == 0) return false;
+        catch (JsonException)
+        { return false; }
+        if (conditions is null || conditions.Count == 0)
+            return false;
         return conditions.All(c => payload.TryGetProperty(c.Key, out var value) && string.Equals(value.ToString(), c.Value, StringComparison.OrdinalIgnoreCase));
     }
 }
@@ -224,7 +226,8 @@ public class AuthController(AppDbContext db, IConfiguration config) : Controller
     public async Task<IActionResult> Login(LoginRequest request, CancellationToken ct)
     {
         var user = await db.Users.FirstOrDefaultAsync(x => x.Username == request.Username, ct);
-        if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash)) return Unauthorized(new { message="Invalid username or password." });
+        if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+            return Unauthorized(new { message="Invalid username or password." });
         return Ok(new LoginResponse(JwtTokens.Create(user, config), user.Id, user.Username, user.Role));
     }
 }
@@ -270,14 +273,20 @@ public class IncidentsController(AppDbContext db, SignatureMatcher matcher, IHub
     public async Task<IActionResult> Receive(IncidentRequest request, CancellationToken ct)
     {
         var customer = await db.Customers.FirstOrDefaultAsync(x=>x.Id==request.CustomerId, ct);
-        if (customer is null) return NotFound(new { code="CUSTOMER_NOT_FOUND", message="Customer not found." });
+        if (customer is null)
+            return NotFound(new { code="CUSTOMER_NOT_FOUND", message="Customer not found." });
+        
         var signature = await matcher.FindMatchAsync(request.Payload, ct);
-        if (signature is null) return NoContent();
+        if (signature is null)
+            return NoContent();
+
         var detection = new Detection { CustomerId=customer.Id, SignatureId=signature.Id, Priority=customer.Importance+signature.Priority, Status=DetectionStatus.Open, IncidentPayload=request.Payload.GetRawText(), CreatedAtUtc=DateTime.UtcNow };
-        db.Detections.Add(detection); await db.SaveChangesAsync(ct);
+        db.Detections.Add(detection);
+        await db.SaveChangesAsync(ct);
         await db.Entry(detection).Reference(x=>x.Customer).LoadAsync(ct);
         await db.Entry(detection).Reference(x=>x.Signature).LoadAsync(ct);
         await hub.Clients.All.SendAsync("DetectionCreated", DetectionDto.From(detection), ct);
+        
         return Ok(DetectionDto.From(detection));
     }
 }
@@ -294,9 +303,15 @@ public class DetectionsController(AppDbContext db, IHubContext<DetectionHub> hub
     public async Task<IActionResult> All(DetectionStatus? status, int? customerId, int? minPriority, CancellationToken ct)
     {
         var q=db.Detections.AsNoTracking().Include(x=>x.Customer).Include(x=>x.Signature).AsQueryable();
-        if(status.HasValue) q=q.Where(x=>x.Status==status.Value);
-        if(customerId.HasValue) q=q.Where(x=>x.CustomerId==customerId.Value);
-        if(minPriority.HasValue) q=q.Where(x=>x.Priority>=minPriority.Value);
+        if(status.HasValue)
+            q=q.Where(x=>x.Status==status.Value);
+
+        if(customerId.HasValue)
+            q=q.Where(x=>x.CustomerId==customerId.Value);
+
+        if(minPriority.HasValue)
+            q=q.Where(x=>x.Priority>=minPriority.Value);
+
         return Ok(await q.OrderByDescending(x=>x.CreatedAtUtc).Select(x=>DetectionDto.From(x)).ToListAsync(ct));
     }
 
@@ -319,7 +334,8 @@ public class DetectionsController(AppDbContext db, IHubContext<DetectionHub> hub
             // The filtered unique index protects the one-active-detection-per-analyst invariant under concurrency.
             return Conflict(new { code="ACTIVE_DETECTION_EXISTS", message="The analyst already has an active detection." });
         }
-        if(affected==0) return Conflict(new { code="DETECTION_ALREADY_CLAIMED", message="The detection has already been claimed by another analyst." });
+        if(affected==0)
+            return Conflict(new { code="DETECTION_ALREADY_CLAIMED", message="The detection has already been claimed by another analyst." });
 
         await hub.Clients.All.SendAsync("DetectionClaimed", new { detectionId=id, userId }, ct);
         var detection=await db.Detections.AsNoTracking().Include(x=>x.Customer).Include(x=>x.Signature).FirstAsync(x=>x.Id==id,ct);
@@ -330,10 +346,14 @@ public class DetectionsController(AppDbContext db, IHubContext<DetectionHub> hub
     [HttpPost("{id:int}/resolve")]
     public async Task<IActionResult> Resolve(int id, ResolveRequest request, CancellationToken ct)
     {
-        if(!TryUserId(out var userId)) return Unauthorized();
-        if(string.IsNullOrWhiteSpace(request.Resolution)) return BadRequest(new { code="RESOLUTION_REQUIRED", message="Resolution is required." });
+        if(!TryUserId(out var userId))
+            return Unauthorized();
+
+        if(string.IsNullOrWhiteSpace(request.Resolution))
+            return BadRequest(new { code="RESOLUTION_REQUIRED", message="Resolution is required." });
         var detection=await db.Detections.Include(x=>x.Customer).Include(x=>x.Signature).FirstOrDefaultAsync(x=>x.Id==id && x.AssignedToUserId==userId && x.Status==DetectionStatus.Assigned,ct);
-        if(detection is null) return NotFound(new { code="ACTIVE_DETECTION_NOT_FOUND", message="The active detection was not found." });
+        if(detection is null)
+            return NotFound(new { code="ACTIVE_DETECTION_NOT_FOUND", message="The active detection was not found." });
         detection.Status=DetectionStatus.Resolved; detection.Resolution=request.Resolution.Trim(); detection.ResolvedAtUtc=DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
         await hub.Clients.All.SendAsync("DetectionResolved", new { detectionId=id }, ct);
