@@ -11,7 +11,8 @@ body {
 
 button,
 input,
-textarea {
+textarea,
+select {
     font: inherit;
 }
 
@@ -28,6 +29,21 @@ button {
 button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+.controls {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+}
+
+.controls input,
+.controls select {
+    min-width: 0;
+}
+
+.controls input {
+    flex: 1;
 }
 
 .app {
@@ -139,9 +155,34 @@ th {
     font-size: 13px;
 }
 
+.sort-header {
+    padding: 0;
+    background: transparent;
+    color: inherit;
+    font-size: inherit;
+}
+
 .empty {
     padding: 28px 5px;
     color: #788394;
+}
+
+.status-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid #e6eaf0;
+}
+
+.status-counts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    color: #5f6b7a;
+    font-size: 14px;
 }
 
 .active {
