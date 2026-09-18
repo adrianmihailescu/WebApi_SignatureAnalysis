@@ -1,0 +1,4 @@
+import type { Detection } from "../types";
+export function DetectionQueue({detections,canClaim,onClaim}:{detections:Detection[];canClaim:boolean;onClaim:(id:number)=>void}){
+ return <section className="card"><div className="head"><div><h2>Detection Queue</h2><p className="muted">Open detections requiring attention.</p></div><span className="badge">{detections.length}</span></div>{!detections.length?<div className="empty">No open detections.</div>:<div className="table"><table><thead><tr><th>ID</th><th>Customer</th><th>Signature</th><th>Priority</th><th>Created UTC</th><th/></tr></thead><tbody>{detections.map(d=><tr key={d.id}><td>#{d.id}</td><td>{d.customerName}</td><td>{d.signatureName}</td><td><b>{d.priority}</b></td><td>{new Date(d.createdAtUtc).toISOString()}</td><td>{canClaim&&<button className="small" onClick={()=>onClaim(d.id)}>Claim</button>}</td></tr>)}</tbody></table></div>}</section>;
+}
